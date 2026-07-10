@@ -2,6 +2,13 @@
 __pycache__/
 *.py[codz]
 *$py.class
+.venv/
+logs/
+wandb/
+*.pt
+*.pth
+*.ckpt
+events.out.tfevents*
 
 # C extensions
 *.so
@@ -9,6 +16,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+**/build/
 develop-eggs/
 dist/
 downloads/
@@ -16,6 +24,15 @@ eggs/
 .eggs/
 lib/
 lib64/
+
+# Keep vendored simulator/deploy runtime libraries in the training branch.
+!unitree_rl_mjlab/deploy/thirdparty/**/lib/
+!unitree_rl_mjlab/deploy/thirdparty/**/lib/**
+!unitree_rl_mjlab/simulate/mujoco/lib/
+!unitree_rl_mjlab/simulate/mujoco/lib/**
+!unitree_rl_mjlab/simulate/mujoco/bin/mujoco_plugin/
+!unitree_rl_mjlab/simulate/mujoco/bin/mujoco_plugin/**
+
 parts/
 sdist/
 var/
