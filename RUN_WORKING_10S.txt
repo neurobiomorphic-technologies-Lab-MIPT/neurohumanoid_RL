@@ -1,0 +1,22 @@
+Working MJLab deploy.
+
+Run command:
+cd /home/unitree/unitree_dance/deploy/robots/g1/build
+LD_LIBRARY_PATH=/usr/local/lib:/usr/local/cuda-11.4/lib64 ./g1_ctrl --network=eth0
+
+Startup sequence:
+L2+Up -> FixStand
+R2+A  -> Velocity
+
+Current mimic mappings:
+R1+A -> full dance1_subject2, about 131s
+R1+B -> compact 10s subject2 clip
+R1+Y -> fast-start subject2 clip, 812 frames / 16.24s at 50 FPS
+
+Stop / exit behavior during dance:
+R2+A -> exit dance to Velocity
+L2+B -> stop policy and switch to Passive, not Velocity
+
+Notes:
+There is no C button in this deploy DSL. Use A/B/X/Y names from the controller mapping.
+Only three mimic versions are kept in config/policy/mimic: full, 10s, and 16s fast-start.

@@ -9,6 +9,12 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+deploy/**/build/
+deploy/**/build_check/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
 develop-eggs/
 dist/
 downloads/
