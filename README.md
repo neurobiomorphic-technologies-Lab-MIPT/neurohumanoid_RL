@@ -10,7 +10,8 @@ experimental protocol to two new robot embodiments:
 
 0. reproduce the authors' simulated xArm experiment;
 1. build an active-perception task for a LeRobot arm;
-2. adapt an active-perception scene for Unitree G1 and train an initial policy.
+2. use the fixed Unitree G1 as a right-arm manipulator and train an initial
+   active-perception policy.
 
 ## Upstream AAWR resources
 
@@ -30,7 +31,7 @@ source commit.
 | --- | --- | --- | --- |
 | 0 | Authors' simulated xArm lift task | Reproduce BC, AWR, and AAWR learning curves | Not started |
 | 1 | LeRobot arm | Learn to reveal an occluded target before reaching/grasping | Planned |
-| 2 | Unitree G1 | Learn a useful viewpoint/search behavior in simulation | Planned |
+| 2 | Fixed Unitree G1, right arm only | Learn wrist-camera viewpoint search with the 7-DoF arm | Planned |
 
 The stages are intentionally sequential. Stage 0 establishes a known-good AAWR
 pipeline and baseline numbers before robot- or simulator-specific changes are
@@ -74,16 +75,26 @@ See [`experiments/01_lerobot/`](experiments/01_lerobot/) for the initial design.
 
 ### 2 — Unitree G1
 
-Adapt the same partial-observability principle to a humanoid scene. The minimum
-viable task is target search: the target starts outside the current field of
-view or behind an occluder, and G1 must change its viewpoint, reveal the target,
-and finish in a stable task-relevant pose.
+Use G1 as a stationary manipulator for the first iteration. Fix the pelvis/base,
+hold the legs, waist, left arm, and other inactive joints in a nominal pose, and
+allow AAWR to control only the seven joints of the right arm available in the
+current simulation asset: three shoulder joints, elbow, and three wrist joints.
+This removes balance and locomotion from the first experiment while preserving
+the G1 kinematics and workspace.
 
-For the first iteration, AAWR should operate at a high level (for example,
-viewpoint, head/torso target, or short motion primitive selection) on top of an
-existing low-level balance/locomotion controller. This isolates active
-perception learning from whole-body control and gives the first run a measurable
-chance of learning.
+Mount a simulated wrist camera on the right arm and place the target outside its
+initial view or behind an occluder. The policy must move the arm to obtain an
+informative view, reveal/localize the target, and then reach it or hand control
+to a downstream manipulation policy. The actor receives only wrist-camera
+observations, right-arm joint state, and history; the privileged AAWR critic may
+also receive target/occluder poses, visibility, and contact state.
+
+This `G1-v0` task intentionally treats G1 as a 7-DoF manipulator rather than as
+a complete humanoid. Once it works, increase complexity in stages: unlock the
+waist, replace the fixed base with a standing controller, and only then permit
+small whole-body viewpoint changes or steps. Before real-robot transfer, pin the
+hardware variant: standard G1 arms have five DoF, while the extra wrist axes are
+configuration-dependent.
 
 See [`experiments/02_unitree_g1/`](experiments/02_unitree_g1/) for the initial
 design.
