@@ -216,3 +216,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# AAWR experiment outputs (keep manifests/configs/reports in git)
+data/
+datasets/
+outputs/
+results/
+logs/
+wandb/
+checkpoints/
+videos/
+*.ckpt
+*.pt
+*.pth
+*.pkl
+*.mp4
