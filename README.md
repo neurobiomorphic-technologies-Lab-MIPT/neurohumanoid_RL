@@ -37,6 +37,15 @@ The stages are intentionally sequential. Stage 0 establishes a known-good AAWR
 pipeline and baseline numbers before robot- or simulator-specific changes are
 introduced.
 
+## Stage 0 preview
+
+![BC, AWR, and AAWR xArm rollouts](experiments/00_official_sim/assets/bc_awr_aawr_seed41.gif)
+
+Final seed-41 rollouts after 40,000 updates: BC reaches `0.000`, AWR reaches
+`0.225`, and AAWR reaches `0.975` success while finishing in fewer steps. Full
+protocol, per-seed results, costs, and limitations are tracked in the
+[`Stage 0 report`](experiments/00_official_sim/report.md).
+
 ### 0 — Reproduce the official simulation
 
 Start from the official toy xArm setup and its documented training entrypoint.

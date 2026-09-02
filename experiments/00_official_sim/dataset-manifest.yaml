@@ -1,0 +1,36 @@
+name: stage0_xarm_seed41
+generator:
+  repository: https://github.com/edwhu/gym-xarm
+  commit: 388227ab683516d014bb7273350ac78c10faf84b
+  script: generate_demos.py
+  numpy_seed: 41
+environment:
+  python: 3.11.15
+  gymnasium: 1.3.0
+  gymnasium_robotics: 1.4.2
+  mujoco: 3.3.7
+  numpy: 1.26.4
+episodes: 100
+transitions: 4680
+observations:
+  rgb:
+    shape: [4680, 84, 84, 3]
+    dtype: uint8
+  state:
+    shape: [4680, 7]
+    dtype: float64
+actions:
+  shape: [4680, 4]
+  dtype: float32
+demonstration_metrics:
+  success_rate: 0.32
+  mean_return: 0.32
+  min_return: 0.0
+  max_return: 1.0
+artifacts:
+  buffer.pkl:
+    bytes: 198774408
+    sha256: 24c515525dda45ca9ef4f611b94beac11b6e844c17099a1271f921c0de5c2b07
+  demos.mp4:
+    bytes: 198691
+    sha256: adb253b41191fc04655dda06ca09a8a78ac9ec10c894062912666c7df4541504

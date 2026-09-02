@@ -1,0 +1,6 @@
+diff --git a/src/algorithm/bc.py b/src/algorithm/bc.py
+--- a/src/algorithm/bc.py
++++ b/src/algorithm/bc.py
+@@ -74 +74 @@
+-    def update(self, replay_buffer, step):
++    def update(self, replay_buffer, step, demo_buffer=None):
