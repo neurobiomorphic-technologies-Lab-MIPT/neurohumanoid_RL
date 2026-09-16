@@ -1,0 +1,154 @@
+diff --git a/src/cfg.py b/src/cfg.py
+--- a/src/cfg.py
++++ b/src/cfg.py
+@@ -22,6 +22,6 @@ def parse_cfg(cfg_path: str, **kwargs) -> OmegaConf:
+ 
+ 	# Task config
+-	if any([base.task.startswith(x) for x in ['xarm', 'gymnasium_xarm', 'gymnasium_koch', 'gymnasium_realkoch', 'gymnasium_pi0_activevision']]):
++	if any([base.task.startswith(x) for x in ['xarm', 'gymnasium_xarm', 'gymnasium_so101', 'gymnasium_koch', 'gymnasium_realkoch', 'gymnasium_pi0_activevision']]):
+ 		domain = base.task
+ 	else:
+ 		try:
+diff --git a/src/env.py b/src/env.py
+--- a/src/env.py
++++ b/src/env.py
+@@ -662,6 +662,73 @@ def make_gymnasium_koch_env(cfg):
+ 
+ #     return env
+ 
++def make_gymnasium_so101_env(cfg):
++    """Make the MuJoCo SO-101 lift environment."""
++    import os
++    import gymnasium as gym
++    import gym_so101_aawr  # noqa: F401
++    from gymnasium.wrappers import TransformObservation
++
++    scene_path = os.environ["SO101_SCENE_PATH"]
++    profiles_path = os.environ["SO101_RESET_PROFILES"]
++    obs_mode = cfg.modality
++    env = gym.make(
++        "gym_so101_aawr/SO101Lift-v0",
++        scene_path=scene_path,
++        reset_profiles_path=profiles_path,
++        render_mode="rgb_array",
++        max_episode_steps=cfg.episode_length,
++    )
++
++    if obs_mode == "pixels":
++        observation_space = gym.spaces.Box(0, 255, shape=(3, 84, 84), dtype=np.uint8)
++        transform = lambda obs: obs["rgb"].transpose(2, 0, 1)
++    elif obs_mode == "state":
++        observation_space = env.observation_space["state"]
++        transform = lambda obs: obs["state"]
++    else:
++        observation_space = gym.spaces.Dict(
++            {
++                "rgb": gym.spaces.Box(0, 255, shape=(3, 84, 84), dtype=np.uint8),
++                "state": env.observation_space["state"],
++            }
++        )
++
++        def transform(obs):
++            result = {"rgb": obs["rgb"].transpose(2, 0, 1), "state": obs["state"]}
++            if cfg.zero_state:
++                result["state"] = np.zeros_like(result["state"])
++            if cfg.zero_rgb:
++                result["rgb"] = np.zeros_like(result["rgb"])
++            return result
++
++    env = TransformObservation(env, transform, observation_space)
++
++    class GymnasiumToGymWrapper(gym.Wrapper):
++        def __init__(self, env):
++            super().__init__(env)
++            self._reset_seed = cfg.seed
++
++        def reset(self):
++            observation, _ = self.env.reset(seed=self._reset_seed)
++            self._reset_seed = None
++            return observation
++
++        def render(self, **kwargs):
++            return self.env.unwrapped.render(**kwargs)
++
++    env = GymnasiumToGymWrapper(env)
++    if obs_mode == "all":
++        cfg.obs_shape = {key: tuple(int(x) for x in space.shape) for key, space in env.observation_space.items()}
++    else:
++        cfg.obs_shape = tuple(int(x) for x in env.observation_space.shape)
++    cfg.action_shape = tuple(int(x) for x in env.action_space.shape)
++    cfg.action_dim = env.action_space.shape[0]
++
++    for key in ["obs_shape", "action_shape", "action_dim"]:
++        print(key, getattr(cfg, key))
++    return env
++
+ def make_d4rl_env(cfg):
+     """Make an environment from D4RL."""
+     import d4rl
+@@ -766,6 +833,9 @@ def make_env(cfg):
+     elif cfg.task.startswith("gymnasium_koch"):
+         cfg.domain = "gymnasium_koch"
+         return make_gymnasium_koch_env(cfg)
++    elif cfg.task.startswith("gymnasium_so101"):
++        cfg.domain = "gymnasium_so101"
++        return make_gymnasium_so101_env(cfg)
+     elif cfg.task.startswith("legged"):
+         cfg.domain = "legged"
+         return make_legged_env(cfg)
+diff --git a/src/algorithm/helper.py b/src/algorithm/helper.py
+--- a/src/algorithm/helper.py
++++ b/src/algorithm/helper.py
+@@ -621,7 +621,7 @@ def get_dataset_dict(cfg, env, return_reward_normalizer=False, return_action_tr
+     """Construct a dataset for env"""
+     required_keys = ["observations", "next_observations", "actions", "rewards", "dones", "masks"]
+     action_transform = lambda x: x
+-    if any([cfg.task.startswith(x) for x in ["xarm", "gymnasium_xarm", "gymnasium_koch"]]):
++    if any([cfg.task.startswith(x) for x in ["xarm", "gymnasium_xarm", "gymnasium_so101", "gymnasium_koch"]]):
+         dataset_path = os.path.join(cfg.dataset_dir, cfg.buffer_name)
+         print(f"Using offline dataset '{dataset_path}'")
+         with open(dataset_path, "rb") as f:
+@@ -629,7 +629,7 @@ def get_dataset_dict(cfg, env, return_reward_normalizer=False, return_action_tr
+         for k in required_keys:
+             if k not in dataset_dict and k[:-1] in dataset_dict:
+                 dataset_dict[k] = dataset_dict.pop(k[:-1]) 
+-        if any([cfg.task.startswith(x) for x in ["gymnasium_koch", "gymnasium_xarm"]]):
++        if any([cfg.task.startswith(x) for x in ["gymnasium_koch", "gymnasium_xarm", "gymnasium_so101"]]):
+             dataset_dict['observations']['rgb'] = dataset_dict['observations']['rgb'].transpose(0, 3, 1, 2)
+             dataset_dict['next_observations']['rgb'] = dataset_dict['next_observations']['rgb'].transpose(0, 3, 1, 2)
+             dataset_dict['masks'] = np.ones_like(dataset_dict['dones'])
+@@ -752,7 +752,7 @@ def get_reward_normalizer(cfg, dataset):
+     """
+     Get a reward normalizer for the dataset
+     """
+-    if cfg.task.startswith("xarm") or cfg.task.startswith("gymnasium_xarm"):
++    if cfg.task.startswith("xarm") or cfg.task.startswith("gymnasium_xarm") or cfg.task.startswith("gymnasium_so101"):
+         return lambda x: x
+     elif "maze" in cfg.task:
+         return lambda x: x - 1.
+diff --git a/cfgs/tasks/gymnasium_so101_lift.yaml b/cfgs/tasks/gymnasium_so101_lift.yaml
+new file mode 100644
+--- /dev/null
++++ b/cfgs/tasks/gymnasium_so101_lift.yaml
+@@ -0,0 +1,21 @@
++modality: 'all'
++priv_modalities: ['state']
++action_repeat: 1
++discount: 0.9
++episode_length: 140
++train_steps: 40000
++offline_steps: 20000
++max_buffer_size: 12000
++expectile: 0.9
++A_scaling: 3.0
++iterations: 6
++uncertainty_cost: 1
++dataset_dir: 'data/stage1_so101_lift'
++eval_freq: 1000
++save_freq: 50000
++eval_episodes: 20
++img_size: 84
++frame_stack: 1
++horizon: 1
++reward_scale: 1.0
++save_video: true

@@ -32,9 +32,9 @@ for patch_file in "$LOGGING_PATCH" "$BC_ONLINE_PATCH"; do
   if [[ "$patch_file" == "$BC_ONLINE_PATCH" ]]; then
     apply_args+=(--unidiff-zero)
   fi
-  if git -C "$AAWR_DIR" apply "${apply_args[@]}" --check "$patch_file"; then
+  if git -C "$AAWR_DIR" apply "${apply_args[@]}" --check "$patch_file" 2>/dev/null; then
     git -C "$AAWR_DIR" apply "${apply_args[@]}" "$patch_file"
-  elif ! git -C "$AAWR_DIR" apply "${apply_args[@]}" --reverse --check "$patch_file"; then
+  elif ! git -C "$AAWR_DIR" apply "${apply_args[@]}" --reverse --check "$patch_file" 2>/dev/null; then
     echo "AAWR worktree has unexpected changes; refusing to apply $patch_file." >&2
     exit 1
   fi

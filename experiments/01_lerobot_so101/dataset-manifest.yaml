@@ -1,0 +1,20 @@
+source:
+  repository: https://huggingface.co/datasets/alexhegit/so101-simstudio-lab01-pnp
+  revision: cfd2210d0bcd824f07cf38efcbf117c0569458c5
+  parquet_sha256: 96187202de3e838b818e46ce8c8ac15a7623e90b97ad03e70ca7461e2e317e21605
+simulation:
+  repository: https://github.com/rocPAI-Forge/so101-simstudio
+  revision: 916a0b79abe244e82179e7b0be554cae153ef645
+  scene: SO101/scenes/simple_pick/scene.xml
+generated:
+  recovered_profiles: 41
+  episodes: 164
+  transitions: 9020
+  replay_successes: 164
+  buffer_sha256: b59b40368044eac6368e79bf3fd7cc1e48ce0fb9439f7ed7957a212693f99a0d
+scope:
+  reset: near-grasp curriculum recovered from successful teleoperation segments
+  success: cube center reaches 0.08 m
+  actor_observation: front RGB, 84x84
+  privileged_critic_state: 34 simulator values
+  action: six normalized joint deltas

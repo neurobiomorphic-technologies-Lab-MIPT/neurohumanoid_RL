@@ -29,8 +29,8 @@ source commit.
 
 | Stage | Robot / environment | First result | Status |
 | --- | --- | --- | --- |
-| 0 | Authors' simulated xArm lift task | Reproduce BC, AWR, and AAWR learning curves | Not started |
-| 1 | LeRobot arm | Learn to reveal an occluded target before reaching/grasping | Planned |
+| 0 | Authors' simulated xArm lift task | Reproduce BC, AWR, and AAWR learning curves | Complete |
+| 1 | LeRobot SO-101 | Establish AAWR lift, then add active perception | Integration validated |
 | 2 | Fixed Unitree G1, right arm only | Learn wrist-camera viewpoint search with the 7-DoF arm | Planned |
 
 The stages are intentionally sequential. Stage 0 establishes a known-good AAWR
@@ -77,10 +77,15 @@ state, and observation/action history. The AAWR critic may additionally use
 simulator-only target pose, occluder pose, contacts, and task phase. BC and
 unprivileged AWR remain mandatory baselines.
 
-The exact LeRobot-compatible arm and simulator are deliberately not fixed yet;
-they should be selected and pinned in the experiment card before implementation.
+The first implementation uses the SO-101 and a pinned MuJoCo SimStudio scene.
+It begins with a near-grasp lift curriculum before widening to home-pose reaching
+and then active perception.
 
-See [`experiments/01_lerobot/`](experiments/01_lerobot/) for the initial design.
+See [`experiments/01_lerobot_so101/`](experiments/01_lerobot_so101/) for the
+implemented environment, its
+[`simulation-to-real roadmap`](experiments/01_lerobot_so101/roadmap_sim_to_real.md),
+and [`experiments/01_lerobot/`](experiments/01_lerobot/) for the original
+active-perception design.
 
 ### 2 — Unitree G1
 
@@ -139,6 +144,7 @@ clear.
 
 ## Current state
 
-This branch currently contains planning documentation and the AAWR seminar
-slides. No upstream code, simulator environment, or reproduced result has been
-added yet.
+Stage 0 is complete. Stage 1 has a validated SO-101 MuJoCo environment,
+replayed expert lift data, and a seed-41 10k-update BC/AWR/AAWR comparison. This
+near-grasp pilot validates integration but is not ready for physical transfer;
+the multi-seed full pick-place roadmap defines the remaining gates.
