@@ -12,17 +12,46 @@ This branch contains one complete BVH to G1 example:
 The preview was recorded from `model_10500.pt`. The branch contains the later
 and final `model_11999.pt` checkpoint.
 
+## Quick start
+
+Clone the branch together with the pinned GMR source:
+
+```bash
+git clone --recurse-submodules \
+  --branch retargeting_g1 \
+  https://github.com/neurobiomorphic-technologies-Lab-MIPT/neurohumanoid_RL.git
+
+cd neurohumanoid_RL
+./retargeting/setup.sh
+./retargeting/run.sh
+```
+
+The last command retargets the included BVH and writes
+`assets/retargeted/sw2_1_chr01_MAYA_G1_GMR.pkl`. The GMR viewer requires a
+desktop session with working OpenGL.
+
+To process another Nokov BVH:
+
+```bash
+./retargeting/run.sh \
+  --input /path/to/motion.bvh \
+  --output /path/to/motion_g1.pkl
+```
+
 ## Files
 
 | Path | Description |
 | --- | --- |
-| `assets/source/sw2_1_chr01_MAYA.bvh` | Original 90 FPS sword motion from `Sword_recs_BVH.zip` |
+| `assets/source/sw2_1_chr01_MAYA.bvh` | Original 90 FPS sword motion |
 | `assets/retargeted/sw2_1_chr01_MAYA_G1_GMR.pkl` | GMR output for Unitree G1, 29 joints |
 | `assets/training/sw2_1_chr01_MAYA_G1_GMR_fixed_start.npz` | MJLab motion used for policy playback and follow-up training |
 | `checkpoints/sw2_g1/model_11999.pt` | Final RSL-RL checkpoint after 12,000 iterations |
 | `checkpoints/sw2_g1/policy.onnx` | ONNX export produced by the final training run |
 | `metadata.json` | Machine-readable motion, repository and training metadata |
 | `SHA256SUMS` | Checksums for the source, motion and policy files |
+| `retargeting/GMR` | GMR source pinned to the tested commit |
+| `retargeting/setup.sh` | Creates the Python environment and installs GMR |
+| `retargeting/run.sh` | Retargets the included BVH or a custom Nokov BVH |
 
 The original GMR result contains a discontinuity between its first two frames.
 It produces an invalid root velocity of about 51 m/s. In the training-ready NPZ,
@@ -37,12 +66,12 @@ That fork is based on
 [`YanjieZe/GMR`](https://github.com/YanjieZe/GMR).
 
 ```bash
-python scripts/bvh_to_robot.py \
-  --bvh_file sw2_1_chr01_MAYA.bvh \
+python retargeting/GMR/scripts/bvh_to_robot.py \
+  --bvh_file assets/source/sw2_1_chr01_MAYA.bvh \
   --format nokov \
   --robot unitree_g1 \
   --motion_fps 90 \
-  --save_path sw2_1_chr01_MAYA_G1_GMR.pkl
+  --save_path assets/retargeted/sw2_1_chr01_MAYA_G1_GMR.pkl
 ```
 
 The PKL stores:
@@ -99,8 +128,7 @@ python scripts/play.py Unitree-G1-Tracking-No-State-Estimation \
 | Neural network runtime | [PyTorch](https://github.com/pytorch/pytorch) 2.12.0 | Training and checkpoint execution |
 | Deployment format | [ONNX](https://onnx.ai/) and ONNX Runtime 1.26.0 | Portable policy export and inference |
 
-The source BVH came from the user-provided `Sword_recs_BVH.zip` archive. Its
-copyright and redistribution terms are not defined by this repository.
+The source BVH is included as the input asset for this reproducible example.
 
 ## Integrity check
 

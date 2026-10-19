@@ -1,0 +1,4 @@
+[submodule "retargeting/GMR"]
+	path = retargeting/GMR
+	url = https://github.com/guoshuhao066-code/GMR.git
+	branch = g1-dance-pipeline
