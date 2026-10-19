@@ -1,0 +1,31 @@
+{
+  "motion": {
+    "name": "sw2_1_chr01_MAYA",
+    "source_format": "BVH",
+    "source_profile": "nokov",
+    "source_fps": 90,
+    "source_frames": 8829,
+    "robot": "Unitree G1 29-DoF",
+    "training_fps": 50,
+    "training_frames": 4905,
+    "duration_seconds": 98.1
+  },
+  "retargeting": {
+    "repository": "https://github.com/guoshuhao066-code/GMR",
+    "commit": "74c725cdb3b4ca19af00eec500fdcd520f0bcd53"
+  },
+  "training": {
+    "repository": "https://github.com/neurobiomorphic-technologies-Lab-MIPT/neurohumanoid_RL",
+    "branch": "dance_train",
+    "commit": "9f3b2bbf375e497f8337ac029ff23293066747cf",
+    "task": "Unitree-G1-Tracking-No-State-Estimation",
+    "num_envs": 4096,
+    "max_iterations": 12000,
+    "final_checkpoint_iteration": 11999,
+    "gpu": "NVIDIA GeForce RTX 3060"
+  },
+  "preview": {
+    "checkpoint_iteration": 10500,
+    "file": "media/sw2_policy_model10500_preview.gif"
+  }
+}
