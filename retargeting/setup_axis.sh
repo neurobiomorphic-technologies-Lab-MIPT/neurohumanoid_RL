@@ -16,7 +16,8 @@ else
     git clone --filter=blob:none --no-checkout \
       https://github.com/RomanSentsov/unitree-g1-axis-studio-retarget.git "$SDK_ROOT"
   fi
-  git -C "$SDK_ROOT" sparse-checkout set --cone MocapApi/MocapApi
+  git -C "$SDK_ROOT" sparse-checkout init --cone
+  git -C "$SDK_ROOT" sparse-checkout set MocapApi/MocapApi
   git -C "$SDK_ROOT" checkout be0a8e0d713697acce94e8b97c49009bc47a3452
   "$PYTHON" -m pip install --no-build-isolation --no-deps "$SDK_ROOT/MocapApi/MocapApi"
 fi
