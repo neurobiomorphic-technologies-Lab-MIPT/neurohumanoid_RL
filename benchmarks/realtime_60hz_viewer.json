@@ -1,0 +1,14 @@
+{
+  "cpu": "x86_64",
+  "target_fps": 60.0,
+  "frames": 601,
+  "elapsed_s": 10.510362327000621,
+  "viewer": true,
+  "source": "paced_bvh",
+  "invalid_packets": 0,
+  "solve_p50_ms": 5.064165998192038,
+  "solve_p95_ms": 6.827485998655902,
+  "solve_max_ms": 7.817545996658737,
+  "total_p95_ms": 10.486548999324441,
+  "missed_deadline_percent": 0.0
+}

@@ -40,6 +40,9 @@ To process another Nokov BVH:
 
 ## Files
 
+For streamed poses and measured CPU performance, see
+[real-time retargeting](retargeting/REALTIME.md).
+
 | Path | Description |
 | --- | --- |
 | `assets/source/sw2_1_chr01_MAYA.bvh` | Original 90 FPS sword motion |
