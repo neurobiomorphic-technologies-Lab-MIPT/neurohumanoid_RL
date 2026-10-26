@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--seconds', type=float, default=10)
     parser.add_argument('--height', type=float, default=1.75)
     parser.add_argument('--viewer', action='store_true')
+    parser.add_argument('--loop', action='store_true', help='Loop the BVH demonstration')
     parser.add_argument('--report', type=Path)
     args = parser.parse_args()
     if bool(args.bvh) == bool(args.udp_port):
@@ -51,7 +52,8 @@ def main():
             if frames is not None:
                 deadline = start + index / args.fps
                 time.sleep(max(0, deadline - time.perf_counter()))
-                source_index = min(int((time.perf_counter()-start)*args.source_fps), len(frames)-1)
+                source_index = int((time.perf_counter()-start)*args.source_fps)
+                source_index = source_index % len(frames) if args.loop else min(source_index, len(frames)-1)
                 pose = copy.deepcopy(frames[source_index])
             else:
                 try:
