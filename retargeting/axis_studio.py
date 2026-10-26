@@ -246,7 +246,9 @@ def main():
             # The included BVH is sampled at 90 Hz.
             def bvh_frames():
                 for tick in range(int(args.seconds * args.fps)):
-                    frame = min(int(tick * 90 / args.fps), len(anim.pos) - 1)
+                    # The attached Sword BVH starts with two discontinuous
+                    # setup samples. Live Axis Studio input is not modified.
+                    frame = min(2 + int(tick * 90 / args.fps), len(anim.pos) - 1)
                     joints = {name: dict(
                         parent=None if anim.parents[i] < 0 else anim.bones[anim.parents[i]],
                         position=anim.pos[frame, i].tolist(),

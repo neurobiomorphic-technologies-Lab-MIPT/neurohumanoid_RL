@@ -9,16 +9,27 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 
+PELVIS_OFFSET = (0.5, -0.5, -0.5, -0.5)
+LEG_OFFSET = PELVIS_OFFSET
+IDENTITY_OFFSET = (1.0, 0.0, 0.0, 0.0)
 TARGETS = (
-    ('torso_link', 'Spine2', 20.0, 2.0, 0.90),
-    ('left_elbow_link', 'LeftForeArm', 8.0, 0.0, 0.75),
-    ('right_elbow_link', 'RightForeArm', 8.0, 0.0, 0.75),
-    ('left_rubber_hand', 'LeftHand', 35.0, 1.0, 0.75),
-    ('right_rubber_hand', 'RightHand', 35.0, 1.0, 0.75),
-    ('left_knee_link', 'LeftLeg', 10.0, 0.0, 0.90),
-    ('right_knee_link', 'RightLeg', 10.0, 0.0, 0.90),
-    ('left_ankle_roll_link', 'LeftFootMod', 45.0, 2.0, 0.90),
-    ('right_ankle_roll_link', 'RightFootMod', 45.0, 2.0, 0.90),
+    ('left_hip_yaw_link', 'LeftUpLeg', 10.0, 5.0, 0.90, LEG_OFFSET),
+    ('right_hip_yaw_link', 'RightUpLeg', 10.0, 5.0, 0.90, LEG_OFFSET),
+    ('left_knee_link', 'LeftLeg', 10.0, 5.0, 0.90, LEG_OFFSET),
+    ('right_knee_link', 'RightLeg', 10.0, 5.0, 0.90, LEG_OFFSET),
+    ('left_ankle_roll_link', 'LeftFootMod', 50.0, 10.0, 0.90, LEG_OFFSET),
+    ('right_ankle_roll_link', 'RightFootMod', 50.0, 10.0, 0.90, LEG_OFFSET),
+    ('torso_link', 'Spine2', 0.0, 10.0, 0.90, PELVIS_OFFSET),
+    ('left_shoulder_yaw_link', 'LeftArm', 5.0, 100.0, 0.75,
+     (0.70710678, 0.0, -0.70710678, 0.0)),
+    ('right_shoulder_yaw_link', 'RightArm', 5.0, 100.0, 0.75,
+     (0.0, 0.707106781, 0.0, 0.707106781)),
+    ('left_elbow_link', 'LeftForeArm', 10.0, 5.0, 0.75, IDENTITY_OFFSET),
+    ('right_elbow_link', 'RightForeArm', 10.0, 5.0, 0.75,
+     (0.0, 0.0, 0.0, 1.0)),
+    ('left_wrist_yaw_link', 'LeftHand', 10.0, 5.0, 0.75, IDENTITY_OFFSET),
+    ('right_wrist_yaw_link', 'RightHand', 10.0, 5.0, 0.75,
+     (0.0, 0.0, 0.0, 1.0)),
 )
 
 
@@ -46,16 +57,6 @@ class PinocchioFullBodyRetargeter:
         self.data = self.model.createData()
         self.q = pin.neutral(self.model)
         self.support = np.r_[np.array([0., 0., 0.79, 1., 0., 0., 0.]), self.q]
-        self.calibration = None
-        self.initial_hips_pos = None
-        self.initial_hips_rot = None
-        pin.framesForwardKinematics(self.model, self.data, self.q)
-        self.neutral_frames = {
-            frame_name: (
-                self.data.oMf[self.model.getFrameId(frame_name)].translation.copy(),
-                self.data.oMf[self.model.getFrameId(frame_name)].rotation.copy(),
-            ) for frame_name, *_ in TARGETS
-        }
 
         cmodel = cpin.Model(self.model)
         cdata = cmodel.createData()
@@ -66,7 +67,7 @@ class PinocchioFullBodyRetargeter:
         self.last_q = self.opti.parameter(self.model.nq)
         self.parameters = []
         cost = 0
-        for frame_name, _, pos_weight, rot_weight, _ in TARGETS:
+        for frame_name, _, pos_weight, rot_weight, _, _ in TARGETS:
             frame_id = self.model.getFrameId(frame_name)
             if frame_id >= self.model.nframes:
                 raise RuntimeError(f'URDF frame not found: {frame_name}')
@@ -111,26 +112,17 @@ class PinocchioFullBodyRetargeter:
             raise ValueError(f'Missing Pinocchio targets: {sorted(missing)}')
         hips_pos = np.asarray(pose['Hips'][0], dtype=float)
         hips_rot = self._rotation(pose['Hips'][1])
-        inv_hips = hips_rot.inv()
-        relative = []
-        for frame_name, human, _, _, scale in TARGETS:
-            position = inv_hips.apply(
-                np.asarray(pose[human][0]) - hips_pos) * scale * self.height_ratio
-            orientation = (inv_hips * self._rotation(pose[human][1])).as_matrix()
-            relative.append((position, orientation))
-        if self.calibration is None:
-            self.initial_hips_pos = hips_pos.copy()
-            self.initial_hips_rot = hips_rot
-            self.calibration = []
-            for (frame_name, *_), (position, orientation) in zip(TARGETS, relative):
-                neutral_pos, neutral_rot = self.neutral_frames[frame_name]
-                self.calibration.append((neutral_pos - position,
-                                         orientation.T @ neutral_rot))
-        for parameter, (position, orientation), (pos_offset, rot_offset) in zip(
-                self.parameters, relative, self.calibration):
+        root_position = hips_pos * (0.90 * self.height_ratio)
+        root_rotation = hips_rot * self._rotation(PELVIS_OFFSET)
+        inverse_root = root_rotation.inv()
+        for parameter, (_, human, _, _, scale, offset) in zip(
+                self.parameters, TARGETS):
+            world_position = ((np.asarray(pose[human][0]) - hips_pos) *
+                              (scale * self.height_ratio) + root_position)
+            world_rotation = self._rotation(pose[human][1]) * self._rotation(offset)
             target = np.eye(4)
-            target[:3, 3] = position + pos_offset
-            target[:3, :3] = orientation @ rot_offset
+            target[:3, 3] = inverse_root.apply(world_position - root_position)
+            target[:3, :3] = (inverse_root * world_rotation).as_matrix()
             self.opti.set_value(parameter, target)
         self.opti.set_value(self.last_q, self.q)
         self.opti.set_initial(self.var_q, self.q)
@@ -149,9 +141,16 @@ class PinocchioFullBodyRetargeter:
         weights = np.array([0.4, 0.3, 0.2, 0.1])[:len(self._history)]
         self.q = np.average(self._history, axis=0, weights=weights)
 
-        root = self.support[:3] + self.initial_hips_rot.inv().apply(
-            hips_pos - self.initial_hips_pos) * (0.90 * self.height_ratio)
-        root_q_xyzw = (self.initial_hips_rot.inv() * hips_rot).as_quat()
+        # Place the lower toe frame on the ground. This is derived from the
+        # solved Pinocchio kinematics and does not depend on GMR output.
+        self.pin.framesForwardKinematics(self.model, self.data, self.q)
+        toe_z = [root_rotation.apply(
+                     self.data.oMf[self.model.getFrameId(name)].translation)[2]
+                 for name in ('left_toe_link', 'right_toe_link')]
+        root_position = root_position.copy()
+        root_position[2] = -min(toe_z)
+        root = root_position
+        root_q_xyzw = root_rotation.as_quat()
         root_q_wxyz = root_q_xyzw[[3, 0, 1, 2]]
         result = np.r_[root, root_q_wxyz, self.q]
         if result.shape != (36,) or not np.isfinite(result).all():

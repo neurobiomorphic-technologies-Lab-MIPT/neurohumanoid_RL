@@ -16,7 +16,7 @@ if ! "$ENV_DIR/bin/python" -c 'from pinocchio import casadi' 2>/dev/null; then
   exit 2
 fi
 "$ENV_DIR/bin/python" -m pip install \
-  mujoco mink loop_rate_limiters 'qpsolvers[proxqp]' rich tqdm natsort imageio
+  mujoco mink loop_rate_limiters 'qpsolvers[proxqp]' rich tqdm natsort 'imageio[ffmpeg]'
 "$ENV_DIR/bin/python" -m pip install --no-deps -e "$ROOT/retargeting/GMR"
 
 echo "Pinocchio environment: $ENV_DIR"
