@@ -1,59 +1,90 @@
-# Axis Studio teleoperation in MuJoCo
+# Телеоперация G1 через Axis Studio в MuJoCo
 
-Axis Studio sends the current Noitom suit pose to the Linux computer over UDP.
-Noitom MocapApi decodes the skeleton, GMR solves the arm and waist pose, and
-MuJoCo displays G1. The robot base and legs stay fixed. The 29-DoF model does
-not reproduce finger motion.
+Axis Studio передаёт текущую позу костюма Noitom на компьютер с Ubuntu по UDP.
+Noitom MocapApi разбирает скелет, GMR вычисляет положение рук и пояса,
+а MuJoCo показывает робота G1. Основание и ноги робота остаются неподвижными.
+Модель с 29 степенями свободы не воспроизводит движения пальцев.
 
-The SDK connection follows the approach in
+Подключение через SDK основано на подходе из
 [RomanSentsov/unitree-g1-axis-studio-retarget](https://github.com/RomanSentsov/unitree-g1-axis-studio-retarget)
-at commit `be0a8e0`. This implementation uses GMR and a MuJoCo viewer.
+на коммите `be0a8e0`. Здесь ретаргетинг выполняет GMR, визуализацию обеспечивает MuJoCo.
 
-## Installation
+## Установка на ноутбук с Ubuntu
 
-From the repository root on Linux:
+Нужны Git, Python 3.10 или новее и рабочий OpenGL. Сначала скачай ветку вместе
+с исходниками GMR:
+
+```bash
+git clone --recurse-submodules \
+  --branch retargeting_g1 \
+  https://github.com/neurobiomorphic-technologies-Lab-MIPT/neurohumanoid_RL.git
+cd neurohumanoid_RL
+```
+
+Если репозиторий уже скачан, перейди в его папку и выполни
+`git submodule update --init --recursive`.
+
+Из корневой папки проекта установи окружение и SDK:
 
 ```bash
 ./retargeting/setup.sh
 ./retargeting/setup_axis.sh
 ```
 
-The second command installs MocapApi 0.1.5 from the pinned reference repository.
-It checks out only its SDK directory into ignored `.deps/`. To use an existing
-SDK distribution, pass the folder containing its `setup.py`:
+Первая команда создаёт окружение `.venv-gmr` и устанавливает GMR.
+Вторая устанавливает MocapApi 0.1.5 из зафиксированной версии репозитория.
+Папка SDK скачивается в `.deps/`, которая исключена из Git.
+Если SDK уже есть, укажи папку с его `setup.py`:
 
 ```bash
 ./retargeting/setup_axis.sh /path/to/MocapApi
 ```
 
-## Axis Studio settings
+## Настройка Axis Studio
 
-1. Put the Windows Axis Studio computer and the Linux MuJoCo computer on the
-   same network. Find the Linux address with `hostname -I`.
-2. In Axis Studio broadcasting settings, enable BVH UDP output. Set the target
-   IP to the Linux computer and the target port to `7012`.
-3. Set the BVH rotation order to `YXZ` and enable displacement data. The SDK
-   requests positions in centimeters; the adapter converts them to meters.
-4. Select **BVH - Capturing** for the live suit, or **BVH - Edit** to send a
-   recording from Axis Studio. Calibrate the suit and start the broadcast.
-5. Allow incoming UDP `7012` on the Linux computer if its firewall blocks it.
+1. Подключи Windows-компьютер с Axis Studio и Ubuntu-компьютер с MuJoCo
+   к одной сети. IP компьютера с Ubuntu можно посмотреть командой `hostname -I`.
+2. В настройках трансляции Axis Studio включи передачу BVH по UDP.
+   В качестве адреса назначения укажи IP компьютера с Ubuntu, порт `7012`.
+3. Выбери порядок вращений `YXZ` и включи **Displacement**.
+   SDK запрашивает координаты в сантиметрах, адаптер переводит их в метры.
+4. Для костюма выбери **BVH - Capturing**, для записи в Axis Studio
+   выбери **BVH - Edit**. Откалибруй костюм и включи трансляцию.
+5. Если на Ubuntu включён сетевой экран, разреши входящий UDP на порт `7012`.
 
-Axis Studio menu labels can differ by version. The reference project's
-[settings screenshot](https://github.com/RomanSentsov/unitree-g1-axis-studio-retarget/blob/be0a8e0d713697acce94e8b97c49009bc47a3452/docs/image.png)
-shows the broadcasting panel.
+Названия пунктов меню зависят от версии Axis Studio.
+[Скриншот настроек трансляции](https://github.com/RomanSentsov/unitree-g1-axis-studio-retarget/blob/be0a8e0d713697acce94e8b97c49009bc47a3452/docs/image.png)
+показывает нужную панель.
 
-## Launch
+Axis Studio должна работать всё время, пока используется костюм. Если Windows
+и Ubuntu установлены на одном ноутбуке через dual boot, после перезагрузки
+в Ubuntu поток прекратится. Для этой схемы нужны одновременно работающие
+Axis Studio на Windows и ретаргетинг на Ubuntu. Между разными сетями можно
+использовать доступный обоим компьютерам VPN-адрес; доступ по SSH или RDP
+сам по себе не обеспечивает доставку UDP.
 
-From a desktop terminal, the launcher keeps runtime caches beside the repository:
+## Запуск
+
+Открой терминал на рабочем столе Ubuntu, перейди в корневую папку проекта
+и запусти:
 
 ```bash
 ./retargeting/launch_axis.sh
 ```
 
-Use `./retargeting/launch_axis.sh --demo` to check the viewer without Axis Studio.
-Both launch modes accept extra arguments such as `--height 1.80` and `--fps 30`.
-The desktop session must provide `DISPLAY`; an ordinary SSH terminal does not
-open a window on the RDP desktop automatically.
+Для проверки окна без Axis Studio выполни `./retargeting/launch_axis.sh --demo`.
+В обоих режимах можно добавить `--height 1.80` и `--fps 30`.
+Кеш и временные файлы запуска хранятся рядом с проектом в `.runtime/`.
+
+При работе через Remmina запускай команду в терминале внутри RDP-сессии.
+Обычное SSH-подключение не открывает окно на удалённом рабочем столе автоматически.
+Если в RDP не создаётся OpenGL-контекст, попробуй программный рендеринг:
+
+```bash
+LIBGL_ALWAYS_SOFTWARE=1 ./retargeting/launch_axis.sh --fps 30
+```
+
+Прямой запуск с явным указанием параметров:
 
 ```bash
 .venv-gmr/bin/python retargeting/axis_studio.py \
@@ -61,21 +92,21 @@ open a window on the RDP desktop automatically.
   --height 1.75 --fps 60 --seconds 3600
 ```
 
-Set `--height` to the performer's height in meters. If Axis Studio uses another
-rotation order, pass the same order to `--rotation-order`. For multiple avatars,
-select one with `--avatar NAME`; otherwise the first received avatar is selected.
+В `--height` укажи рост человека в метрах. Если в Axis Studio выбран другой
+порядок вращений, укажи его в `--rotation-order`. Если передаются несколько
+аватаров, выбери нужный через `--avatar NAME`. По умолчанию выбирается первый.
 
-The program prints the avatar name when it receives a pose. It polls the SDK at
-the requested maximum rate and uses the newest available avatar update. If the
-stream stops for one second, it prints a message and holds the last pose.
-Close the viewer or press Ctrl+C to stop.
+При получении позы программа выводит имя аватара. Она опрашивает SDK
+с заданной частотой и берёт последнее доступное обновление.
+Если данных нет больше секунды, появляется сообщение, робот сохраняет последнюю позу.
+Для остановки закрой окно MuJoCo или нажми Ctrl+C в терминале.
 
-No ROS 2, Unitree SDK or trained policy is needed for this simulation.
+Для этой симуляции не нужны ROS 2, Unitree SDK и обученная policy.
 
-## Test without a suit
+## Проверка без костюма
 
-This command emulates the SDK local-transform input from the included 90 FPS
-BVH and shows upper-body teleoperation:
+Эта команда подаёт локальные положения и повороты суставов из приложенного
+BVH с частотой исходника 90 Гц и показывает движения рук и корпуса:
 
 ```bash
 .venv-gmr/bin/python retargeting/axis_studio.py \
@@ -83,20 +114,21 @@ BVH and shows upper-body teleoperation:
   --fps 60 --seconds 20
 ```
 
-Add `--headless` to run without a window. To run conversion and support-pose
-checks:
+Добавь `--headless` для запуска без окна. Для проверки преобразования скелета
+и неподвижности ног выполни:
 
 ```bash
 .venv-gmr/bin/python retargeting/test_axis_studio.py
 ```
 
-The checks compare local-to-global conversion with the GMR BVH loader, reject
-invalid skeletons, and verify finite arm motion with fixed legs and base.
-Local-transform replay does not exercise Axis Studio's binary network protocol.
-SDK import and UDP initialization can be checked without a sender:
+Проверки сравнивают преобразование локальных координат в мировые с загрузчиком
+BVH из GMR, отбрасывают некорректные скелеты и проверяют движение рук
+при фиксированных ногах и основании.
+Воспроизведение BVH проверяет обработку позы, но не сетевой протокол Axis Studio.
+Загрузку SDK и открытие UDP-порта можно проверить без передатчика:
 
 ```bash
 .venv-gmr/bin/python retargeting/axis_studio.py --headless --seconds 5
 ```
 
-A live suit connection still needs validation on an Axis Studio machine.
+Подключение живого костюма ещё нужно проверить с работающей Axis Studio.
