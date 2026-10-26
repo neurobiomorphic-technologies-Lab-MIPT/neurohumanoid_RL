@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Axis Studio local joint transforms -> GMR -> G1 upper-body MuJoCo viewer."""
+"""Axis Studio local joint transforms -> GMR -> G1 MuJoCo viewer."""
 import argparse
 import copy
 import json
@@ -15,6 +15,10 @@ from trajectory import TrajectoryRecorder
 AXIS_TO_GMR = Rotation.from_matrix([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
 REQUIRED = {'Hips', 'Spine2', 'LeftArm', 'RightArm', 'LeftForeArm',
             'RightForeArm', 'LeftHand', 'RightHand'}
+FULL_BODY_REQUIRED = REQUIRED | {
+    'LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg',
+    'LeftFoot', 'RightFoot',
+}
 
 
 def local_to_gmr(joints, scale=0.01):
@@ -121,6 +125,25 @@ class UpperBodyRetargeter:
         return result
 
 
+class FullBodyRetargeter:
+    """Retarget the floating base, torso, arms and both legs."""
+    def __init__(self, height):
+        from general_motion_retargeting import GeneralMotionRetargeting
+        self.ik = GeneralMotionRetargeting(
+            src_human='bvh_nokov', tgt_robot='unitree_g1',
+            actual_human_height=height)
+        self.support = self.ik.configuration.data.qpos.copy()
+
+    def step(self, pose):
+        missing = FULL_BODY_REQUIRED - pose.keys()
+        if missing:
+            raise ValueError(f'Missing full-body joints: {sorted(missing)}')
+        result = self.ik.retarget(copy.deepcopy(pose), align_robot_to_ground=True)
+        if not np.isfinite(result).all():
+            raise RuntimeError('Nonfinite IK result')
+        return result
+
+
 class AxisSource:
     def __init__(self, port, rotation_order, avatar_name=None):
         try:
@@ -190,6 +213,9 @@ def main():
     parser.add_argument('--replay-bvh', type=Path, help='Emulate the SDK local-transform input using a BVH')
     parser.add_argument('--report', type=Path)
     parser.add_argument('--record', type=Path, help='Save timestamped G1 poses to a new .npz file')
+    parser.add_argument('--mode', choices=['upper-body', 'full-body'],
+                        default='upper-body',
+                        help='Fixed-support teleoperation or full-body kinematic IK')
     args = parser.parse_args()
     if min(args.height, args.fps, args.seconds) <= 0:
         parser.error('Height, FPS and seconds must be positive')
@@ -219,7 +245,8 @@ def main():
             replay = iter(bvh_frames())
         else:
             source = AxisSource(args.port, args.rotation_order, args.avatar)
-        retargeter = UpperBodyRetargeter(args.height)
+        retargeter = (UpperBodyRetargeter(args.height) if args.mode == 'upper-body'
+                      else FullBodyRetargeter(args.height))
         if args.record:
             import mujoco
             model = retargeter.ik.model
@@ -227,7 +254,9 @@ def main():
                      for j in range(model.njnt)
                      if model.jnt_type[j] != mujoco.mjtJoint.mjJNT_FREE]
             recorder = TrajectoryRecorder(args.record, names, dict(
-                robot='unitree_g1', mode='upper_body_fixed_support',
+                robot='unitree_g1',
+                mode=('upper_body_fixed_support' if args.mode == 'upper-body'
+                      else 'full_body_kinematic'),
                 source='local_transform_replay' if replay is not None else 'axis_studio_sdk',
                 nominal_fps=args.fps, height_m=args.height,
                 rotation_order=args.rotation_order, clock='local_monotonic_seconds',
@@ -278,6 +307,7 @@ def main():
         report = dict(frames=len(timings), invalid_frames=invalid,
                       source='local_transform_replay' if replay is not None else 'axis_studio_sdk',
                       p95_ms=float(np.percentile(timings, 95)) if timings else None,
+                      mode=args.mode,
                       physical_suit_tested=False)
         print(json.dumps(report, indent=2))
         if args.report:

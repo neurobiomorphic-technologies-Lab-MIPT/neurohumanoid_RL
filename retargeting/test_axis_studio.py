@@ -5,7 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
-from axis_studio import REQUIRED, UpperBodyRetargeter, local_to_gmr
+from axis_studio import (FullBodyRetargeter, REQUIRED, UpperBodyRetargeter,
+                         local_to_gmr)
 from general_motion_retargeting.utils.lafan1 import load_bvh_file
 from general_motion_retargeting.utils.lafan_vendor.extract import read_bvh
 
@@ -60,6 +61,18 @@ class AxisTests(unittest.TestCase):
             np.testing.assert_allclose(qpos[runner.fixed], runner.support[runner.fixed], atol=1e-8)
             outputs.append(qpos)
         self.assertGreater(float(np.max(np.ptp(outputs, axis=0))), 0.01)
+
+    def test_full_body_tracks_legs(self):
+        runner = FullBodyRetargeter(1.75)
+        outputs = []
+        for frame in range(2, 302, 15):
+            qpos = runner.step(local_to_gmr(self.joints(frame)))
+            self.assertEqual(qpos.shape, (36,))
+            self.assertTrue(np.isfinite(qpos).all())
+            outputs.append(qpos)
+        motion = np.ptp(np.asarray(outputs), axis=0)
+        # qpos 7:19 are the twelve hip, knee and ankle joints.
+        self.assertGreater(float(np.max(motion[7:19])), 0.01)
 
 
 if __name__ == '__main__':
