@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 from scipy.spatial.transform import Rotation
+from trajectory import TrajectoryRecorder
 
 
 # Same Y-up to Z-up convention used by the pinned GMR BVH loader.
@@ -188,6 +189,7 @@ def main():
     parser.add_argument('--replay-local', type=Path, help='Replay JSONL local transforms without the SDK')
     parser.add_argument('--replay-bvh', type=Path, help='Emulate the SDK local-transform input using a BVH')
     parser.add_argument('--report', type=Path)
+    parser.add_argument('--record', type=Path, help='Save timestamped G1 poses to a new .npz file')
     args = parser.parse_args()
     if min(args.height, args.fps, args.seconds) <= 0:
         parser.error('Height, FPS and seconds must be positive')
@@ -196,6 +198,7 @@ def main():
     source = None
     replay = None
     viewer = None
+    recorder = None
     timings = []
     try:
         if args.replay_local:
@@ -217,6 +220,18 @@ def main():
         else:
             source = AxisSource(args.port, args.rotation_order, args.avatar)
         retargeter = UpperBodyRetargeter(args.height)
+        if args.record:
+            import mujoco
+            model = retargeter.ik.model
+            names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j)
+                     for j in range(model.njnt)
+                     if model.jnt_type[j] != mujoco.mjtJoint.mjJNT_FREE]
+            recorder = TrajectoryRecorder(args.record, names, dict(
+                robot='unitree_g1', mode='upper_body_fixed_support',
+                source='local_transform_replay' if replay is not None else 'axis_studio_sdk',
+                nominal_fps=args.fps, height_m=args.height,
+                rotation_order=args.rotation_order, clock='local_monotonic_seconds',
+                units='meters_radians', root_quaternion_order='wxyz'))
         if not args.headless:
             from general_motion_retargeting import RobotMotionViewer
             viewer = RobotMotionViewer('unitree_g1', motion_fps=args.fps)
@@ -255,6 +270,8 @@ def main():
             stale = False
             tick = time.perf_counter()
             qpos = retargeter.step(pose)
+            if recorder:
+                recorder.append(time.perf_counter() - start, qpos)
             if viewer:
                 viewer.step(qpos[:3], qpos[3:7], qpos[7:], rate_limit=False)
             timings.append((time.perf_counter() - tick) * 1000)
@@ -269,10 +286,16 @@ def main():
     except KeyboardInterrupt:
         print('Axis Studio teleoperation stopped.', flush=True)
     finally:
-        if viewer:
-            viewer.close()
-        if source:
-            source.close()
+        try:
+            if recorder:
+                recorder.close()
+        finally:
+            try:
+                if viewer:
+                    viewer.close()
+            finally:
+                if source:
+                    source.close()
 
 
 if __name__ == '__main__':
