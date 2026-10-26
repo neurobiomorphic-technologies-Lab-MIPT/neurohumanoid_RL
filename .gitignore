@@ -152,6 +152,7 @@ activemq-data/
 .envrc
 .venv
 .venv-gmr/
+.venv-pinocchio/
 .deps/
 .runtime/
 recordings/

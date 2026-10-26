@@ -125,6 +125,49 @@ LIBGL_ALWAYS_SOFTWARE=1 ./retargeting/launch_axis.sh --fps 30
 для сохранения равновесия и контактов нужна обученная policy или отдельный
 whole-body controller с ограничениями опоры.
 
+### Альтернативный решатель Pinocchio
+
+Отдельный backend повторяет принцип оптимизатора Романа Сенцова, но решает все
+29 суставов модели с резиновыми кистями. Кинематика вычисляется в Pinocchio,
+задача собирается в CasADi и решается IPOPT. В целевую функцию входят положение
+и ориентация корпуса, кистей и стоп, а также положения локтей и коленей.
+Используются ограничения суставов, warm start и сглаживание четырёх кадров.
+При первом полученном кадре автоматически вычисляются offsets между скелетом
+человека и нейтральной позой G1. Перед запуском стой ровно в нейтральной позе.
+
+Установи отдельное окружение, чтобы версии Pinocchio и NumPy не затронули
+рабочее окружение GMR:
+
+```bash
+./retargeting/setup_pinocchio.sh
+GMR_PYTHON=.venv-pinocchio/bin/python ./retargeting/setup_axis.sh
+```
+
+Установщик использует Pinocchio 3.1.0 и CasADi 3.6.7 из conda-forge. Вариант
+Pinocchio из PyPI не подходит, потому что в нём нет `pinocchio.casadi`.
+
+Запуск с костюмом:
+
+```bash
+./retargeting/launch_axis.sh --backend pinocchio --mode full-body
+```
+
+Проверка на BVH:
+
+```bash
+./retargeting/launch_axis.sh --demo --backend pinocchio --mode full-body
+```
+
+Исходники Романа не копируются в проект. Собственный full-body оптимизатор
+использует разрешённую URDF G1 из GMR. Ограничение для физического робота то же:
+IK строит позу, но не обеспечивает динамический баланс и безопасный контакт стоп.
+
+Проверка backend:
+
+```bash
+.venv-pinocchio/bin/python -m unittest retargeting/test_pinocchio_fullbody.py
+```
+
 ## Запись траекторий
 
 Добавь `--record` и имя нового файла:

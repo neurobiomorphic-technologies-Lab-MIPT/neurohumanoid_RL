@@ -216,11 +216,15 @@ def main():
     parser.add_argument('--mode', choices=['upper-body', 'full-body'],
                         default='upper-body',
                         help='Fixed-support teleoperation or full-body kinematic IK')
+    parser.add_argument('--backend', choices=['gmr', 'pinocchio'], default='gmr',
+                        help='IK implementation; Pinocchio requires full-body mode')
     args = parser.parse_args()
     if min(args.height, args.fps, args.seconds) <= 0:
         parser.error('Height, FPS and seconds must be positive')
     if args.replay_local and args.replay_bvh:
         parser.error('Select only one replay source')
+    if args.backend == 'pinocchio' and args.mode != 'full-body':
+        parser.error('The Pinocchio backend requires --mode full-body')
     source = None
     replay = None
     viewer = None
@@ -230,7 +234,14 @@ def main():
         if args.replay_local:
             replay = iter(args.replay_local.read_text().splitlines())
         elif args.replay_bvh:
-            from general_motion_retargeting.utils.lafan_vendor.extract import read_bvh
+            if args.backend == 'pinocchio':
+                import sys
+                utils_dir = (Path(__file__).resolve().parent / 'GMR' /
+                             'general_motion_retargeting' / 'utils')
+                sys.path.insert(0, str(utils_dir))
+                from lafan_vendor.extract import read_bvh
+            else:
+                from general_motion_retargeting.utils.lafan_vendor.extract import read_bvh
             anim = read_bvh(str(args.replay_bvh))
             # The included BVH is sampled at 90 Hz.
             def bvh_frames():
@@ -245,25 +256,38 @@ def main():
             replay = iter(bvh_frames())
         else:
             source = AxisSource(args.port, args.rotation_order, args.avatar)
-        retargeter = (UpperBodyRetargeter(args.height) if args.mode == 'upper-body'
-                      else FullBodyRetargeter(args.height))
+        if args.backend == 'pinocchio':
+            from pinocchio_fullbody import PinocchioFullBodyRetargeter
+            retargeter = PinocchioFullBodyRetargeter(args.height)
+        else:
+            retargeter = (UpperBodyRetargeter(args.height)
+                          if args.mode == 'upper-body'
+                          else FullBodyRetargeter(args.height))
         if args.record:
-            import mujoco
-            model = retargeter.ik.model
-            names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j)
-                     for j in range(model.njnt)
-                     if model.jnt_type[j] != mujoco.mjtJoint.mjJNT_FREE]
+            if args.backend == 'pinocchio':
+                names = list(retargeter.model.names[1:])
+            else:
+                import mujoco
+                model = retargeter.ik.model
+                names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, j)
+                         for j in range(model.njnt)
+                         if model.jnt_type[j] != mujoco.mjtJoint.mjJNT_FREE]
             recorder = TrajectoryRecorder(args.record, names, dict(
                 robot='unitree_g1',
                 mode=('upper_body_fixed_support' if args.mode == 'upper-body'
                       else 'full_body_kinematic'),
+                backend=args.backend,
                 source='local_transform_replay' if replay is not None else 'axis_studio_sdk',
                 nominal_fps=args.fps, height_m=args.height,
                 rotation_order=args.rotation_order, clock='local_monotonic_seconds',
                 units='meters_radians', root_quaternion_order='wxyz'))
         if not args.headless:
-            from general_motion_retargeting import RobotMotionViewer
-            viewer = RobotMotionViewer('unitree_g1', motion_fps=args.fps)
+            if args.backend == 'pinocchio':
+                from pinocchio_fullbody import PinocchioMotionViewer
+                viewer = PinocchioMotionViewer(args.fps)
+            else:
+                from general_motion_retargeting import RobotMotionViewer
+                viewer = RobotMotionViewer('unitree_g1', motion_fps=args.fps)
             support = retargeter.support
             viewer.step(support[:3], support[3:7], support[7:], rate_limit=False)
         start = last_frame = time.perf_counter()
@@ -308,6 +332,7 @@ def main():
                       source='local_transform_replay' if replay is not None else 'axis_studio_sdk',
                       p95_ms=float(np.percentile(timings, 95)) if timings else None,
                       mode=args.mode,
+                      backend=args.backend,
                       physical_suit_tested=False)
         print(json.dumps(report, indent=2))
         if args.report:
