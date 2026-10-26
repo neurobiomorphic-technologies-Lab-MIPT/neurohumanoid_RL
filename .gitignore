@@ -152,6 +152,7 @@ activemq-data/
 .envrc
 .venv
 .venv-gmr/
+.deps/
 env/
 venv/
 ENV/

@@ -43,6 +43,9 @@ To process another Nokov BVH:
 For streamed poses and measured CPU performance, see
 [real-time retargeting](retargeting/REALTIME.md).
 
+For live Noitom suit input, see [Axis Studio teleoperation](retargeting/AXIS_STUDIO.md).
+It includes SDK installation, broadcast settings and a fixed-leg upper-body mode.
+
 | Path | Description |
 | --- | --- |
 | `assets/source/sw2_1_chr01_MAYA.bvh` | Original 90 FPS sword motion |
