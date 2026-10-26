@@ -44,6 +44,17 @@ shows the broadcasting panel.
 
 ## Launch
 
+From a desktop terminal, the launcher keeps runtime caches beside the repository:
+
+```bash
+./retargeting/launch_axis.sh
+```
+
+Use `./retargeting/launch_axis.sh --demo` to check the viewer without Axis Studio.
+Both launch modes accept extra arguments such as `--height 1.80` and `--fps 30`.
+The desktop session must provide `DISPLAY`; an ordinary SSH terminal does not
+open a window on the RDP desktop automatically.
+
 ```bash
 .venv-gmr/bin/python retargeting/axis_studio.py \
   --port 7012 --rotation-order YXZ \
